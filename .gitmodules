@@ -1,6 +1,7 @@
 [submodule "panda"]
   path = panda
-  url = ../../commaai/panda.git
+  url = ../../ayyybe/panda.git
+  branch = m096-obf22
 [submodule "opendbc"]
   path = opendbc
   url = ../../commaai/opendbc.git

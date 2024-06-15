@@ -10,4 +10,6 @@ if [ -z "$AGNOS_VERSION" ]; then
   export AGNOS_VERSION="9.6"
 fi
 
+export FINGERPRINT="SUBARU OUTBACK 7TH GEN"
+
 export STAGING_ROOT="/data/safe_staging"
