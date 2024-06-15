@@ -20,17 +20,17 @@ class CarControllerParams:
     self.STEER_DRIVER_MULTIPLIER = 50  # weight driver torque heavily
     self.STEER_DRIVER_FACTOR = 1       # from dbc
 
-  if CP.carFingerprint in LKAS_ANGLE:
-    self.ANGLE_RATE_LIMIT_UP = AngleRateLimit(speed_bp=[0.], angle_v=[1.])
-    self.ANGLE_RATE_LIMIT_DOWN = AngleRateLimit(speed_bp=[0.], angle_v=[1.])
-  elif CP.carFingerprint in GLOBAL_GEN2:
-    self.STEER_MAX = 1000
-    self.STEER_DELTA_UP = 40
-    self.STEER_DELTA_DOWN = 40
-  elif CP.carFingerprint == CAR.IMPREZA_2020:
-    self.STEER_MAX = 1439
-  else:
-    self.STEER_MAX = 2047
+    if CP.carFingerprint in LKAS_ANGLE:
+      self.ANGLE_RATE_LIMIT_UP = AngleRateLimit(speed_bp=[0.], angle_v=[1.])
+      self.ANGLE_RATE_LIMIT_DOWN = AngleRateLimit(speed_bp=[0.], angle_v=[1.])
+    elif CP.carFingerprint in GLOBAL_GEN2:
+      self.STEER_MAX = 1000
+      self.STEER_DELTA_UP = 40
+      self.STEER_DELTA_DOWN = 40
+    elif CP.carFingerprint == CAR.IMPREZA_2020:
+      self.STEER_MAX = 1439
+    else:
+      self.STEER_MAX = 2047
 
   THROTTLE_MIN = 808
   THROTTLE_MAX = 3400
