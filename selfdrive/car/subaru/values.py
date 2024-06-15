@@ -4,7 +4,7 @@ from typing import Dict, List, Union
 
 from cereal import car
 from panda.python import uds
-from openpilot.selfdrive.car import dbc_dict
+from openpilot.selfdrive.car import AngleRateLimit, dbc_dict
 from openpilot.selfdrive.car.docs_definitions import CarFootnote, CarHarness, CarInfo, CarParts, Tool, Column
 from openpilot.selfdrive.car.fw_query_definitions import FwQueryConfig, Request, StdQueries, p16
 
@@ -20,14 +20,17 @@ class CarControllerParams:
     self.STEER_DRIVER_MULTIPLIER = 50  # weight driver torque heavily
     self.STEER_DRIVER_FACTOR = 1       # from dbc
 
-    if CP.carFingerprint in GLOBAL_GEN2:
-      self.STEER_MAX = 1000
-      self.STEER_DELTA_UP = 40
-      self.STEER_DELTA_DOWN = 40
-    elif CP.carFingerprint == CAR.IMPREZA_2020:
-      self.STEER_MAX = 1439
-    else:
-      self.STEER_MAX = 2047
+  if CP.carFingerprint in LKAS_ANGLE:
+    self.ANGLE_RATE_LIMIT_UP = AngleRateLimit(speed_bp=[0.], angle_v=[1.])
+    self.ANGLE_RATE_LIMIT_DOWN = AngleRateLimit(speed_bp=[0.], angle_v=[1.])
+  elif CP.carFingerprint in GLOBAL_GEN2:
+    self.STEER_MAX = 1000
+    self.STEER_DELTA_UP = 40
+    self.STEER_DELTA_DOWN = 40
+  elif CP.carFingerprint == CAR.IMPREZA_2020:
+    self.STEER_MAX = 1439
+  else:
+    self.STEER_MAX = 2047
 
   THROTTLE_MIN = 808
   THROTTLE_MAX = 3400
@@ -75,10 +78,13 @@ class CAR(StrEnum):
   IMPREZA = "SUBARU IMPREZA LIMITED 2019"
   IMPREZA_2020 = "SUBARU IMPREZA SPORT 2020"
   FORESTER = "SUBARU FORESTER 2019"
+  FORESTER_2022 = "SUBARU FORESTER 2022"
   OUTBACK = "SUBARU OUTBACK 6TH GEN"
+  OUTBACK_2023 = "SUBARU OUTBACK 7TH GEN"
   CROSSTREK_HYBRID = "SUBARU CROSSTREK HYBRID 2020"
   FORESTER_HYBRID = "SUBARU FORESTER HYBRID 2020"
   LEGACY = "SUBARU LEGACY 7TH GEN"
+  LEGACY_2023 = "SUBARU LEGACY 8TH GEN"
   FORESTER_2022 = "SUBARU FORESTER 2022"
   OUTBACK_2023 = "SUBARU OUTBACK 7TH GEN"
 
@@ -107,6 +113,8 @@ class SubaruCarInfo(CarInfo):
 CAR_INFO: Dict[str, Union[SubaruCarInfo, List[SubaruCarInfo]]] = {
   CAR.ASCENT: SubaruCarInfo("Subaru Ascent 2019-21", "All"),
   CAR.OUTBACK: SubaruCarInfo("Subaru Outback 2020-22", "All", car_parts=CarParts.common([CarHarness.subaru_b])),
+  CAR.OUTBACK_2023: SubaruCarInfo("Subaru Outback 2023", "All", car_parts=CarParts.common([CarHarness.subaru_d])),
+  CAR.LEGACY_2023: SubaruCarInfo("Subaru Legacy 2023", "All", car_parts=CarParts.common([CarHarness.subaru_d])),
   CAR.LEGACY: SubaruCarInfo("Subaru Legacy 2020-22", "All", car_parts=CarParts.common([CarHarness.subaru_b])),
   CAR.IMPREZA: [
     SubaruCarInfo("Subaru Impreza 2017-19"),
@@ -122,6 +130,7 @@ CAR_INFO: Dict[str, Union[SubaruCarInfo, List[SubaruCarInfo]]] = {
   CAR.CROSSTREK_HYBRID: SubaruCarInfo("Subaru Crosstrek Hybrid 2020", car_parts=CarParts.common([CarHarness.subaru_b])),
   CAR.FORESTER_HYBRID: SubaruCarInfo("Subaru Forester Hybrid 2020"),
   CAR.FORESTER: SubaruCarInfo("Subaru Forester 2019-21", "All"),
+  CAR.FORESTER_2022: SubaruCarInfo("Subaru Forester 2022", car_parts=CarParts.common([CarHarness.subaru_c])),
   CAR.FORESTER_PREGLOBAL: SubaruCarInfo("Subaru Forester 2017-18"),
   CAR.LEGACY_PREGLOBAL: SubaruCarInfo("Subaru Legacy 2015-18"),
   CAR.OUTBACK_PREGLOBAL: SubaruCarInfo("Subaru Outback 2015-17"),
@@ -141,6 +150,10 @@ FW_QUERY_CONFIG = FwQueryConfig(
     Request(
       [StdQueries.TESTER_PRESENT_REQUEST, SUBARU_VERSION_REQUEST],
       [StdQueries.TESTER_PRESENT_RESPONSE, SUBARU_VERSION_RESPONSE],
+    ),
+    Request(
+      [StdQueries.SHORT_TESTER_PRESENT_REQUEST, SUBARU_VERSION_REQUEST],
+      [StdQueries.SHORT_TESTER_PRESENT_REQUEST, SUBARU_VERSION_RESPONSE],
     ),
     # Some Eyesight modules fail on TESTER_PRESENT_REQUEST
     # TODO: check if this resolves the fingerprinting issue for the 2023 Ascent and other new Subaru cars
@@ -688,8 +701,9 @@ FW_VERSIONS = {
   },
   CAR.OUTBACK_2023: {
     (Ecu.abs, 0x7b0, None): [
-      b'\xa1 #\x14\x00',
       b'\xa1 #\x17\x00',
+      b'\xa1 #\x16\x00',
+      b'\xa1 #\x14\x00',
     ],
     (Ecu.eps, 0x746, None): [
       b'+\xc0\x10\x11\x00',
@@ -697,14 +711,16 @@ FW_VERSIONS = {
     ],
     (Ecu.fwdCamera, 0x787, None): [
       b'\t!\x08\x046\x05!\x08\x01/',
+      b'\t!\x08\x046\x00\x00\x00\x00\x00',
     ],
     (Ecu.engine, 0x7a2, None): [
-      b'\xed,\xa0q\x07',
       b'\xed,\xa2q\x07',
+      b'\xed"`@\x07',
+      b'\xed,\xa0q\x07',
     ],
     (Ecu.transmission, 0x7a3, None): [
-      b'\xa8\x8e\xf41\x00',
       b'\xa8\xfe\xf41\x00',
+      b'\xa8\x8e\xf41\x00',
     ]
   }
 }
@@ -721,13 +737,20 @@ DBC = {
   CAR.CROSSTREK_HYBRID: dbc_dict('subaru_global_2020_hybrid_generated', None),
   CAR.OUTBACK_2023: dbc_dict('subaru_global_2017_generated', None),
   CAR.LEGACY: dbc_dict('subaru_global_2017_generated', None),
+  CAR.LEGACY_2023: dbc_dict('subaru_global_2017_generated', None),
   CAR.FORESTER_PREGLOBAL: dbc_dict('subaru_forester_2017_generated', None),
   CAR.LEGACY_PREGLOBAL: dbc_dict('subaru_outback_2015_generated', None),
   CAR.OUTBACK_PREGLOBAL: dbc_dict('subaru_outback_2015_generated', None),
   CAR.OUTBACK_PREGLOBAL_2018: dbc_dict('subaru_outback_2019_generated', None),
 }
 
-LKAS_ANGLE = {CAR.FORESTER_2022, CAR.OUTBACK_2023, CAR.ASCENT_2023}
+# Cars that use angle based LKAS
+LKAS_ANGLE = {CAR.FORESTER_2022, CAR.OUTBACK_2023, CAR.ASCENT_2023, CAR.LEGACY_2023}
+
+# Cars that require using ES_Status and ES_Dashstatus, since we haven't found an equivalent CruiseControl message
+ES_STATUS = (CAR.FORESTER_2022, CAR.OUTBACK_2023, CAR.ASCENT_2023, CAR.LEGACY_2023)
+
+# Cars with longitudinal and other messages on bus1 rather than bus0/2
 GLOBAL_GEN2 = {CAR.OUTBACK, CAR.LEGACY, CAR.OUTBACK_2023, CAR.ASCENT_2023}
 PREGLOBAL_CARS = {CAR.FORESTER_PREGLOBAL, CAR.LEGACY_PREGLOBAL, CAR.OUTBACK_PREGLOBAL, CAR.OUTBACK_PREGLOBAL_2018}
 HYBRID_CARS = {CAR.CROSSTREK_HYBRID, CAR.FORESTER_HYBRID}
